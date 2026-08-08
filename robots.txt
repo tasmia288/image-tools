@@ -1,5 +1,6 @@
-# robots.txt - WebP to PNG Converter
-# Update the Sitemap URL if you move the site to a custom domain.
+# robots.txt - Image Converter Tools
+# Note: crawlers only read robots.txt at the domain root. On a github.io project
+# site this file has no effect; submit the sitemap in Search Console instead.
 
 User-agent: *
 Allow: /

@@ -1,2 +1,6 @@
 # Local Claude Code settings
 .claude/
+
+# Python bytecode from the page generator
+__pycache__/
+*.pyc

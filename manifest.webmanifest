@@ -1,0 +1,30 @@
+{
+  "name": "Image Converter Tools",
+  "short_name": "Image Tools",
+  "description": "Free browser-based converters for WebP, PNG and JPG. Nothing is uploaded.",
+  "start_url": "https://tasmia288.github.io/image-tools/",
+  "scope": "https://tasmia288.github.io/image-tools/",
+  "display": "standalone",
+  "background_color": "#0e131b",
+  "theme_color": "#2f6df0",
+  "icons": [
+    {
+      "src": "https://tasmia288.github.io/image-tools/assets/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://tasmia288.github.io/image-tools/assets/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://tasmia288.github.io/image-tools/assets/img/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

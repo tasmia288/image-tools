@@ -35,8 +35,11 @@
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/* Dark palette. Declared twice on purpose: once for the OS preference (unless
+   the visitor has explicitly chosen light) and once for an explicit choice, so
+   the toggle can override the system in both directions. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg:            #0e131b;
     --surface:       #161d27;
     --surface-alt:   #1c2531;
@@ -54,6 +57,25 @@
     --danger-soft:   #33191a;
     --shadow-md:     0 4px 20px -6px rgba(0, 0, 0, .5);
   }
+}
+
+:root[data-theme="dark"] {
+  --bg:            #0e131b;
+  --surface:       #161d27;
+  --surface-alt:   #1c2531;
+  --border:        #28313d;
+  --border-strong: #3a4553;
+  --text:          #e8ecf2;
+  --text-muted:    #a3adbb;
+  --text-faint:    #7c8797;
+  --accent:        #6d9bff;
+  --accent-hover:  #8bb0ff;
+  --accent-soft:   #1b2740;
+  --success:       #4ecfa0;
+  --success-soft:  #142a23;
+  --danger:        #ff8f7e;
+  --danger-soft:   #33191a;
+  --shadow-md:     0 4px 20px -6px rgba(0, 0, 0, .5);
 }
 
 /* ---------- Reset ---------- */
@@ -128,6 +150,11 @@ a:hover { color: var(--accent-hover); }
 
 /* ---------- Hero + converter ---------- */
 .hero { padding: clamp(1.75rem, 1rem + 3vw, 3rem) 0 .5rem; text-align: center; }
+.crumbs { font-size: .84rem; color: var(--text-faint); margin-bottom: .75rem; }
+.crumbs a { color: var(--text-muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); text-decoration: underline; }
+.crumbs span { margin: 0 .35rem; }
+.hub-grid { max-width: 900px; margin: 0 auto; text-align: left; }
 .hero h1 { margin-bottom: .35em; }
 .lede {
   max-width: 60ch; margin: 0 auto 1.75rem;
@@ -177,6 +204,43 @@ a:hover { color: var(--accent-hover); }
 .btn-ghost:hover { background: var(--surface-alt); color: var(--text); }
 .btn-sm { padding: .5rem .85rem; font-size: .87rem; border-radius: 8px; }
 .btn:disabled, .btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+
+/* ---------- Theme toggle ---------- */
+.theme-toggle {
+  display: inline-grid; place-items: center;
+  width: 36px; height: 36px; padding: 0; flex: none;
+  border-radius: 9px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.theme-toggle:hover { background: var(--surface-alt); color: var(--text); }
+.theme-toggle .icon-sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-sun,
+:root:not([data-theme="light"]) .theme-toggle .icon-sun { display: block; }
+:root[data-theme="dark"] .theme-toggle .icon-moon,
+:root:not([data-theme="light"]) .theme-toggle .icon-moon { display: none; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .theme-toggle .icon-sun { display: none; }
+  :root:not([data-theme="dark"]) .theme-toggle .icon-moon { display: block; }
+}
+:root[data-theme="light"] .theme-toggle .icon-sun { display: none; }
+:root[data-theme="light"] .theme-toggle .icon-moon { display: block; }
+
+/* ---------- Conversion options ---------- */
+.options {
+  display: flex; flex-wrap: wrap; gap: 1.25rem 2rem; align-items: center;
+  margin-top: 1.15rem; padding: .9rem 1rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface-alt);
+}
+.option { display: flex; align-items: center; gap: .6rem; font-size: .9rem; }
+.option label { color: var(--text-muted); font-weight: 550; }
+.option input[type="range"] { width: 150px; accent-color: var(--accent); }
+.option input[type="color"] {
+  width: 34px; height: 30px; padding: 0; cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: 7px; background: none;
+}
+.option output { font-variant-numeric: tabular-nums; font-weight: 620; min-width: 3.2em; }
+.option-hint { font-size: .82rem; color: var(--text-faint); }
 
 /* ---------- Status + progress ---------- */
 .status { margin: 1rem 0 0; font-size: .93rem; color: var(--text-muted); min-height: 1.5em; }
@@ -256,6 +320,27 @@ a:hover { color: var(--accent-hover); }
   border-radius: var(--radius); border: 1px solid var(--danger);
   background: var(--danger-soft); color: var(--text); text-align: left; font-size: .95rem;
 }
+
+/* ---------- Tool grid (hub page + "other tools" blocks) ---------- */
+.tool-grid {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: .85rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+.tool-grid a {
+  display: block; height: 100%;
+  padding: 1rem 1.1rem; text-decoration: none;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); color: var(--text);
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.tool-grid a:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.tool-grid a[aria-current="page"] { border-color: var(--accent); background: var(--accent-soft); }
+.tool-grid .tool-name { display: block; font-weight: 640; font-size: 1rem; margin-bottom: .2rem; }
+.tool-grid .tool-desc { display: block; font-size: .86rem; color: var(--text-muted); line-height: 1.5; }
+
+.related { padding-block: 1.4rem; }
+.related h2 { font-size: 1.2rem; }
 
 /* ---------- Content ---------- */
 .content-grid {

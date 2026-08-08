@@ -1,19 +1,31 @@
 /**
- * UI layer for the WebP -> PNG converter.
+ * UI layer shared by every converter page.
  *
- * Owns the file list, the drop zone, progress reporting and downloads.
- * All image work is delegated to converter.js; all archiving to zip.js.
+ * The page declares which formats it handles in a JSON block:
+ *   <script type="application/json" id="tool-config">{"source":"webp","target":"png"}</script>
+ * Everything else — labels, accepted types, quality controls — follows from that,
+ * so all tool pages run the same tested code path.
  */
 
 import {
   ConversionError,
-  convertWebpToPng,
+  SOURCE_FORMATS,
+  TARGET_FORMATS,
+  canEncode,
+  convertImage,
   formatBytes,
   makeUniqueName,
-  toPngFilename,
-  validateWebpFile,
+  retargetFilename,
+  sizeDelta,
+  validateFile,
 } from './converter.js';
 import { createZip } from './zip.js';
+
+const configNode = document.getElementById('tool-config');
+const config = configNode ? JSON.parse(configNode.textContent) : { source: 'webp', target: 'png' };
+const SOURCE = SOURCE_FORMATS[config.source];
+const TARGET = TARGET_FORMATS[config.target];
+const DEFAULT_QUALITY = config.target === 'jpeg' ? 0.92 : 0.85;
 
 const el = {
   dropzone: document.getElementById('dropzone'),
@@ -22,6 +34,10 @@ const el = {
   status: document.getElementById('status'),
   progress: document.getElementById('progress'),
   progressBar: document.getElementById('progress-bar'),
+  options: document.getElementById('options'),
+  quality: document.getElementById('quality'),
+  qualityValue: document.getElementById('quality-value'),
+  background: document.getElementById('background'),
   toolbar: document.getElementById('toolbar'),
   convertBtn: document.getElementById('convert-btn'),
   downloadAllBtn: document.getElementById('download-all-btn'),
@@ -38,9 +54,9 @@ let isConverting = false;
  * @property {number} id
  * @property {File} file
  * @property {string} previewUrl   object URL for the on-screen thumbnail
- * @property {string} pngUrl       object URL for the converted PNG ('' until converted)
- * @property {Blob|null} pngBlob
- * @property {string} pngName
+ * @property {string} outputUrl    object URL for the converted file ('' until converted)
+ * @property {Blob|null} outputBlob
+ * @property {string} outputName
  * @property {number} width
  * @property {number} height
  * @property {'pending'|'converting'|'done'|'error'} status
@@ -96,7 +112,7 @@ async function addFiles(fileList) {
       continue;
     }
 
-    const check = await validateWebpFile(file);
+    const check = await validateFile(file, SOURCE);
     const item = createItem(file);
 
     if (!check.ok) {
@@ -126,9 +142,9 @@ function createItem(file) {
     id: nextId++,
     file,
     previewUrl: URL.createObjectURL(file),
-    pngUrl: '',
-    pngBlob: null,
-    pngName: toPngFilename(file.name),
+    outputUrl: '',
+    outputBlob: null,
+    outputName: retargetFilename(file.name, TARGET.extension),
     width: 0,
     height: 0,
     status: 'pending',
@@ -140,7 +156,7 @@ function createItem(file) {
 
 /**
  * The thumbnail doubles as a decode test: if the browser cannot render the
- * WebP here, it will not be able to convert it either, so we fail early with
+ * image here, it will not be able to convert it either, so we fail early with
  * a clear message instead of at conversion time.
  */
 function loadPreview(item) {
@@ -184,6 +200,12 @@ const TRASH_ICON =
   '<path d="M4 7h16M10 7V5.5A1.5 1.5 0 0 1 11.5 4h1A1.5 1.5 0 0 1 14 5.5V7m-7 0 .8 12.1A1.9 1.9 0 0 0 9.7 21h4.6a1.9 1.9 0 0 0 1.9-1.9L17 7" ' +
   'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+// Copying an image to the clipboard is only reliably supported for PNG.
+const CAN_COPY =
+  TARGET.mimeType === 'image/png' &&
+  typeof ClipboardItem === 'function' &&
+  Boolean(navigator.clipboard?.write);
+
 function renderItem(item) {
   const li = makeEl('li', 'file-item');
 
@@ -205,8 +227,13 @@ function renderItem(item) {
 
   const actions = makeEl('div', 'file-actions');
 
-  const download = makeEl('a', 'btn btn-secondary btn-sm', 'Download PNG');
+  const download = makeEl('a', 'btn btn-secondary btn-sm', `Download ${TARGET.label}`);
   download.hidden = true;
+
+  const copy = makeEl('button', 'btn btn-ghost btn-sm', 'Copy');
+  copy.type = 'button';
+  copy.hidden = true;
+  if (CAN_COPY) copy.addEventListener('click', () => copyToClipboard(item, copy));
 
   const remove = makeEl('button', 'icon-btn');
   remove.type = 'button';
@@ -214,17 +241,17 @@ function renderItem(item) {
   remove.setAttribute('aria-label', `Remove ${item.file.name}`);
   remove.addEventListener('click', () => removeItem(item.id));
 
-  actions.append(download, remove);
+  actions.append(download, copy, remove);
   li.append(thumb, meta, actions);
 
   item.node = li;
-  item.refs = { image, fallback, sub, download };
+  item.refs = { image, fallback, sub, download, copy };
   el.list.append(li);
   updateItem(item);
 }
 
 function updateItem(item) {
-  const { sub, download, image, fallback } = item.refs;
+  const { sub, download, copy, image, fallback } = item.refs;
   sub.textContent = '';
 
   const unreadable = item.status === 'error' && !item.width;
@@ -244,15 +271,16 @@ function updateItem(item) {
   switch (item.status) {
     case 'pending':
       state.textContent = 'Ready';
-      state.className = 'file-state';
       break;
     case 'converting':
       state.textContent = 'Converting…';
       break;
-    case 'done':
+    case 'done': {
       state.className = 'file-state is-done';
-      state.textContent = `PNG · ${formatBytes(item.pngBlob.size)}`;
+      const delta = sizeDelta(item.file.size, item.outputBlob.size);
+      state.textContent = `${TARGET.label} · ${formatBytes(item.outputBlob.size)}${delta ? ` (${delta})` : ''}`;
       break;
+    }
     case 'error':
       state.className = 'file-state is-error';
       state.textContent = item.message;
@@ -264,12 +292,32 @@ function updateItem(item) {
 
   if (item.status === 'done') {
     download.hidden = false;
-    download.href = item.pngUrl;
-    download.download = item.pngName;
-    download.setAttribute('aria-label', `Download ${item.pngName}`);
+    download.href = item.outputUrl;
+    download.download = item.outputName;
+    download.setAttribute('aria-label', `Download ${item.outputName}`);
+    copy.hidden = !CAN_COPY;
+    if (CAN_COPY) copy.setAttribute('aria-label', `Copy ${item.outputName} to clipboard`);
   } else {
     download.hidden = true;
+    copy.hidden = true;
   }
+}
+
+async function copyToClipboard(item, button) {
+  if (!item.outputBlob) return;
+  const original = button.textContent;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ [TARGET.mimeType]: item.outputBlob })]);
+    button.textContent = 'Copied';
+    setStatus(`${item.outputName} copied to the clipboard.`, 'done');
+  } catch (error) {
+    console.error('Clipboard write failed:', error);
+    button.textContent = 'Failed';
+    setStatus('Your browser blocked the clipboard. Use Download instead.', 'error');
+  }
+  setTimeout(() => {
+    button.textContent = original;
+  }, 2000);
 }
 
 function removeItem(id) {
@@ -284,10 +332,10 @@ function removeItem(id) {
 
 function releaseItem(item) {
   if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-  if (item.pngUrl) URL.revokeObjectURL(item.pngUrl);
+  if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
   item.previewUrl = '';
-  item.pngUrl = '';
-  item.pngBlob = null;
+  item.outputUrl = '';
+  item.outputBlob = null;
 }
 
 function clearAll() {
@@ -297,7 +345,7 @@ function clearAll() {
   el.input.value = '';
   syncToolbar();
   setProgress(0, 0);
-  setStatus('Cleared. Add WebP files to start again.');
+  setStatus(`Cleared. Add ${SOURCE.label} files to start again.`);
 }
 
 /** Enables/disables the toolbar to match what is actually possible right now. */
@@ -306,9 +354,10 @@ function syncToolbar() {
   const converted = items.filter((item) => item.status === 'done').length;
 
   el.toolbar.hidden = items.length === 0;
+  if (el.options) el.options.hidden = items.length === 0;
   el.convertBtn.disabled = isConverting || convertible === 0;
   el.convertBtn.textContent =
-    convertible > 1 ? `Convert ${convertible} images to PNG` : 'Convert to PNG';
+    convertible > 1 ? `Convert ${convertible} images to ${TARGET.label}` : `Convert to ${TARGET.label}`;
   el.clearBtn.disabled = isConverting;
   el.downloadAllBtn.hidden = converted < 2;
   el.downloadAllBtn.disabled = isConverting;
@@ -321,14 +370,28 @@ function syncToolbar() {
 /** Hands control back to the browser so the UI can paint between images. */
 const yieldToUi = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+function currentOptions() {
+  return {
+    target: TARGET,
+    quality: el.quality ? Number(el.quality.value) / 100 : DEFAULT_QUALITY,
+    background: el.background ? el.background.value : '#ffffff',
+  };
+}
+
 async function convertAll() {
   const queue = items.filter((item) => item.status === 'pending');
   if (queue.length === 0 || isConverting) return;
+
+  if (!(await canEncode(TARGET.mimeType))) {
+    setStatus(`Your browser cannot create ${TARGET.label} files. Try Chrome, Edge or Firefox.`, 'error');
+    return;
+  }
 
   isConverting = true;
   syncToolbar();
   el.list.setAttribute('aria-busy', 'true');
 
+  const options = currentOptions();
   let succeeded = 0;
   let failed = 0;
 
@@ -341,9 +404,9 @@ async function convertAll() {
     await yieldToUi();
 
     try {
-      const result = await convertWebpToPng(item.file);
-      item.pngBlob = result.blob;
-      item.pngUrl = URL.createObjectURL(result.blob);
+      const result = await convertImage(item.file, options);
+      item.outputBlob = result.blob;
+      item.outputUrl = URL.createObjectURL(result.blob);
       item.width = result.width;
       item.height = result.height;
       item.status = 'done';
@@ -368,8 +431,8 @@ async function convertAll() {
   if (failed === 0) {
     setStatus(
       succeeded === 1
-        ? 'Done. Your PNG is ready to download.'
-        : `Done. ${succeeded} PNG files are ready to download.`,
+        ? `Done. Your ${TARGET.label} is ready to download.`
+        : `Done. ${succeeded} ${TARGET.label} files are ready to download.`,
       'done'
     );
   } else if (succeeded === 0) {
@@ -405,10 +468,10 @@ async function downloadAll() {
   try {
     const taken = new Set();
     const zip = await createZip(
-      converted.map((item) => ({ name: makeUniqueName(item.pngName, taken), blob: item.pngBlob }))
+      converted.map((item) => ({ name: makeUniqueName(item.outputName, taken), blob: item.outputBlob }))
     );
-    triggerDownload(zip, 'converted-png-images.zip');
-    setStatus(`ZIP archive with ${converted.length} PNG files downloaded.`, 'done');
+    triggerDownload(zip, `converted-${TARGET.extension}-images.zip`);
+    setStatus(`ZIP archive with ${converted.length} ${TARGET.label} files downloaded.`, 'done');
   } catch (error) {
     console.error('ZIP creation failed:', error);
     setStatus(
@@ -426,6 +489,8 @@ async function downloadAll() {
  * Events
  * ------------------------------------------------------------------ */
 
+el.input.accept = SOURCE.accept;
+
 el.input.addEventListener('change', () => {
   addFiles(el.input.files);
   // Reset so re-selecting the same file still fires a change event.
@@ -435,6 +500,15 @@ el.input.addEventListener('change', () => {
 el.convertBtn.addEventListener('click', convertAll);
 el.downloadAllBtn.addEventListener('click', downloadAll);
 el.clearBtn.addEventListener('click', clearAll);
+
+if (el.quality) {
+  el.quality.value = String(Math.round(DEFAULT_QUALITY * 100));
+  const showQuality = () => {
+    el.qualityValue.textContent = `${el.quality.value}%`;
+  };
+  el.quality.addEventListener('input', showQuality);
+  showQuality();
+}
 
 ['dragenter', 'dragover'].forEach((type) => {
   el.dropzone.addEventListener(type, (event) => {
@@ -468,7 +542,11 @@ el.dropzone.addEventListener('drop', (event) => {
 
 window.addEventListener('beforeunload', () => items.forEach(releaseItem));
 
-const yearEl = document.getElementById('year');
-if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+// Warn once, up front, if this browser cannot write the target format at all.
+canEncode(TARGET.mimeType).then((supported) => {
+  if (!supported) {
+    setStatus(`Your browser cannot create ${TARGET.label} files. Try Chrome, Edge or Firefox.`, 'error');
+  }
+});
 
 syncToolbar();
