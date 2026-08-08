@@ -1,0 +1,14 @@
+# robots.txt - WebP to PNG Converter
+# Update the Sitemap URL if you move the site to a custom domain.
+
+User-agent: *
+Allow: /
+
+# Ad crawlers need explicit access for AdSense to serve relevant ads.
+User-agent: Mediapartners-Google
+Allow: /
+
+User-agent: AdsBot-Google
+Allow: /
+
+Sitemap: https://tasmia288.github.io/image-tools/sitemap.xml
