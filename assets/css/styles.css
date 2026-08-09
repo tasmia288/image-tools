@@ -417,9 +417,8 @@ a:hover { color: var(--accent-hover); }
   .ad-slot--leaderboard .ad-container { min-height: 90px; max-width: 970px; margin-inline: auto; }
 }
 
-/* Desktop-only sidebar rail. */
-.ad-rail { display: none; }
-.ad-slot--rail { position: sticky; top: 1.5rem; margin-block: 0; }
+/* Desktop-only sidebar rail. Hidden until there is room for it. */
+.ad-slot--rail { display: none; }
 
 /* Keep mobile ad density low: drop the in-content rectangle on small screens. */
 @media (max-width: 599px) {
@@ -481,6 +480,15 @@ a:hover { color: var(--accent-hover); }
 }
 
 @media (min-width: 1080px) {
-  .content-grid { grid-template-columns: minmax(0, 1fr) 300px; }
-  .ad-rail { display: block; padding-top: 1.4rem; }
+  /* The second column only exists when a rail ad is actually present. While the
+     slot is commented out, the article gets the full width and centres itself
+     instead of leaving a dead 300px gutter. Uncommenting the ad restores the
+     two-column layout with no other change. */
+  .content-grid:has(.ad-slot--rail) { grid-template-columns: minmax(0, 1fr) 300px; }
+  .content-grid:not(:has(.ad-slot--rail)) .content-main { margin-inline: auto; }
+  .ad-slot--rail {
+    display: block;
+    position: sticky; top: 1.5rem;
+    margin-block: 0; padding-top: 1.4rem;
+  }
 }

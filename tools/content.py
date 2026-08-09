@@ -14,6 +14,11 @@ See the "Adding a converter" section of the top-level README.
 BASE_URL = "https://tasmia288.github.io/image-tools"
 SITE_NAME = "Image Converter Tools"
 CONTACT_EMAIL = "sh.tasmi91@gmail.com"
+
+# Ad slots render as commented-out HTML by default, so visitors (and AdSense
+# reviewers) never see empty grey boxes. Flip to True only while working on the
+# layout locally — never in a build you deploy.
+AD_PLACEHOLDERS = False
 LAST_UPDATED = "9 August 2026"
 LAST_MODIFIED = "2026-08-09"
 
@@ -79,7 +84,7 @@ TOOLS = [
         ],
         "faqs": [
             ("How do I convert WebP to PNG?", "Add your WebP files to the drop area at the top of this page, press Convert to PNG, then download the results. The whole process runs in your browser and usually takes a second or two per image."),
-            ("Is this WebP to PNG converter free?", "Yes. There is no sign-up, no watermark and no daily quota. The site is supported by advertising, which is why you will see clearly marked ad areas around the tool."),
+            ("Is this WebP to PNG converter free?", "Yes. There is no sign-up, no watermark and no daily quota. Running costs are covered by advertising, which is kept clearly labelled and separate from the tool controls."),
             ("Does converting WebP to PNG reduce image quality?", "The PNG step is lossless, so nothing is lost in conversion. However, if the source was a lossy WebP, the artefacts already baked into it remain — converting cannot restore detail that the WebP encoder discarded."),
             ("Why is my PNG bigger than the WebP file?", "That is expected. WebP compresses photographic content much more aggressively than PNG. PNG is lossless, so it stores every pixel exactly and the file is usually several times larger."),
             ("Does the converter keep transparency?", "Yes. WebP images with an alpha channel are drawn onto a transparent canvas, and PNG supports full alpha, so transparent areas survive the conversion."),

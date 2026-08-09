@@ -57,7 +57,9 @@ built for Google AdSense monetisation.
     └── img/                 favicon, PWA icons, per-tool social cards
 ```
 
-Around 45 KB of HTML/CSS/JS per page, and zero third-party requests.
+Around 45 KB of HTML/CSS/JS per page, and zero third-party requests. Every page
+carries the same four-item navigation (All tools · Privacy · Terms · Contact),
+generated from one list in `build.py` so it cannot drift between pages.
 
 ## Run it locally
 
@@ -164,9 +166,25 @@ Both steps are in `tools/build.py`, so a single edit applies to all ten pages.
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
 ```
 
-**2. The units.** In the `ad_slot()` function, replace the placeholder `<div>`
-with your `<ins>` unit — keep the `<aside class="ad-slot">` wrapper, because that
-is what reserves the height:
+**2. The units.** Ad slots ship **commented out**, so nothing renders — visitors
+and AdSense reviewers never see empty grey boxes, which read as an unfinished
+template. Each generated page contains four blocks like this:
+
+```html
+  <!-- AD SLOT 1 (leaderboard)
+       To activate: fill in the two IDs below, then remove this opening comment
+       marker and the closing one after the </aside>.
+
+  <aside class="ad-slot ad-slot--leaderboard wrap" aria-label="Advertisement">
+    <ins class="adsbygoogle" ...></ins>
+  </aside>
+
+  -->
+```
+
+Edit the `ad_slot()` function in `tools/build.py` so it emits your real unit,
+then rebuild — one edit covers all ten pages. Keep the `<aside class="ad-slot">`
+wrapper, because that is what reserves the height:
 
 ```html
 <ins class="adsbygoogle" style="display:block"
@@ -177,6 +195,15 @@ is what reserves the height:
 
 Then `python3 tools/build.py`. No publisher or slot IDs are invented anywhere in
 this project — paste your own from your AdSense account.
+
+Setting `AD_PLACEHOLDERS = True` in `tools/content.py` renders visible grey
+boxes instead, which is useful for checking spacing while you work on the
+layout. **Never deploy a build with that flag on.**
+
+The desktop sidebar column only appears when a rail ad is actually present
+(`.content-grid:has(.ad-slot--rail)`), so while the slots are commented out the
+article centres itself instead of leaving a dead 300 px gutter. Uncommenting the
+ad restores the two-column layout with no other change.
 
 ### The four slots on every page
 
@@ -286,6 +313,11 @@ Honest list, so you don't get surprise support email:
   Failures are reported per file rather than producing a blank image.
 - **JavaScript is required**, since conversion happens on the client. A
   `<noscript>` message explains this.
+- **The contact address is obfuscated, not hidden.** It is assembled by a small
+  script from `data-` attributes, so the raw HTML contains no usable `mailto:`
+  string and the readable fallback is `sh.tasmi91 [at] gmail [dot] com`. This
+  defeats naive harvesters; a scraper that executes JavaScript will still get it.
+  A contact form would need a backend, which this site deliberately does not have.
 - **The theme toggle writes one `localStorage` key** (`theme` = `light`/`dark`).
   This is disclosed explicitly in the privacy policy; nothing else is stored.
 - **Colour management follows the browser.** Wide-gamut sources are converted to

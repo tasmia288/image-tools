@@ -18,7 +18,8 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from content import (  # noqa: E402
-    BASE_URL, COMMON_FAQS, CONTACT_EMAIL, LAST_MODIFIED, LAST_UPDATED, SITE_NAME, TOOLS,
+    AD_PLACEHOLDERS, BASE_URL, COMMON_FAQS, CONTACT_EMAIL, LAST_MODIFIED, LAST_UPDATED,
+    SITE_NAME, TOOLS,
 )
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -70,21 +71,37 @@ ADSENSE_HEAD_COMMENT = """<!-- =================================================
 
 
 def ad_slot(variant, number):
-    """A reserved advertising container. Replace the inner div with an AdSense unit."""
+    """An advertising slot.
+
+    With AD_PLACEHOLDERS off (the default, and what you should deploy) this
+    emits a commented-out <aside> and nothing renders: no empty grey boxes for
+    visitors or AdSense reviewers to see. Paste your publisher and slot IDs in,
+    delete the two comment markers, and the unit goes live with its height
+    already reserved.
+    """
     wrapper_class = f"ad-slot ad-slot--{variant}"
     if variant == "leaderboard":
         wrapper_class += " wrap"
-    return f"""  <!-- =========================================================================
-       AD SLOT {number} ({variant}) - replace the placeholder div with your AdSense unit:
-         <ins class="adsbygoogle" style="display:block"
-              data-ad-client="ca-pub-XXXXXXXXXXXXXXXX" data-ad-slot="XXXXXXXXXX"
-              data-ad-format="auto" data-full-width-responsive="true"></ins>
-         <script>(adsbygoogle = window.adsbygoogle || []).push({{}});</script>
-       Keep the <aside> wrapper: it reserves height so the page cannot shift.
-       ========================================================================= -->
+
+    if AD_PLACEHOLDERS:
+        return f"""  <!-- AD SLOT {number} ({variant}) - development placeholder -->
   <aside class="{wrapper_class}" aria-label="Advertisement">
     <div class="ad-container">AD SLOT PLACEHOLDER</div>
   </aside>"""
+
+    return f"""  <!-- AD SLOT {number} ({variant})
+       To activate: fill in the two IDs below, then remove this opening comment
+       marker and the closing one after the </aside>. Keep the <aside> wrapper —
+       it reserves the slot's height so a late-loading ad cannot shift the page.
+
+  <aside class="{wrapper_class}" aria-label="Advertisement">
+    <ins class="adsbygoogle" style="display:block"
+         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX" data-ad-slot="XXXXXXXXXX"
+         data-ad-format="auto" data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({{}});</script>
+  </aside>
+
+  -->"""
 
 
 def head(prefix, title, description, canonical, og_image, extra=""):
@@ -132,8 +149,22 @@ def head(prefix, title, description, canonical, og_image, extra=""):
 """
 
 
-def header(prefix, nav_links):
-    links = "\n      ".join(f'<a href="{href}">{esc(label)}</a>' for label, href in nav_links)
+def nav_links(prefix):
+    """The same four links on every page. Uniform navigation matters both for
+    visitors and for AdSense review, so no page gets a bespoke menu."""
+    return [
+        ("All tools", prefix or "./"),
+        ("Privacy", f"{prefix}privacy.html"),
+        ("Terms", f"{prefix}terms.html"),
+        ("Contact", f"{prefix}contact.html"),
+    ]
+
+
+def header(prefix, current=None):
+    links = "\n      ".join(
+        f'<a href="{href}"{" aria-current=\"page\"" if label == current else ""}>{esc(label)}</a>'
+        for label, href in nav_links(prefix)
+    )
     return f"""<a class="skip-link" href="#main">Skip to the converter</a>
 
 <header class="site-header">
@@ -345,7 +376,6 @@ def build_tool_page(tool):
         ],
     })
 
-    nav = [("All tools", prefix), ("How it works", "#how-to"), ("FAQ", "#faq"), ("Contact", f"{prefix}contact.html")]
 
     about = "\n        ".join(f"<p>{p}</p>" for p in tool["about"])
     why = "\n          ".join(f"<li><strong>{esc(lead)}</strong> {esc(rest)}</li>" for lead, rest in tool["why"])
@@ -354,7 +384,7 @@ def build_tool_page(tool):
 
     return "".join([
         head(prefix, tool["title"], tool["description"], canonical, og_image, structured),
-        header(prefix, nav),
+        header(prefix),
         f"""
 <main id="main">
 
@@ -450,7 +480,7 @@ def build_tool_page(tool):
 
     </div>
 
-{ad_slot("rail", 3).replace("  <aside", "    <aside").replace("<div class=\"ad-container\">", "  <div class=\"ad-container\">")}
+{ad_slot("rail", 3)}
   </div>
 
   <section class="wrap related" aria-labelledby="related-h">
@@ -486,7 +516,7 @@ def build_hub():
     )
     faqs = [
         ("Are my images uploaded to a server?", "No. Every converter here runs on your own device using your browser's image decoder and HTML5 Canvas. The site is static, with no backend and no upload endpoint, so there is nowhere for a file to be sent. You can confirm this in the Network tab of your browser's developer tools."),
-        ("Are these converters free?", "Yes. There is no sign-up, no watermark and no daily quota. The site is supported by advertising, shown in clearly marked areas away from the tools."),
+        ("Are these converters free?", "Yes. There is no sign-up, no watermark and no daily quota. Running costs are covered by advertising, which is kept clearly labelled and separate from the tools."),
         ("Can I convert several images at once?", "Yes. Every converter accepts multiple files, processes them one at a time so the page stays responsive, and offers a single ZIP archive of the results."),
         ("Which formats are supported?", "Conversion between WebP, PNG and JPG in the combinations listed above. These are the formats every browser can both decode and encode natively, which is what makes instant, private, in-browser conversion possible."),
         ("Do these work on a phone?", "Yes. Every page is responsive and works in mobile Chrome, Safari, Firefox and Edge. Very large images may fail on phones because of tighter memory limits."),
@@ -520,11 +550,10 @@ def build_hub():
         ],
     })
 
-    nav = [("FAQ", "#faq"), ("Privacy", "privacy.html"), ("Contact", "contact.html")]
 
     return "".join([
         head(prefix, title, description, canonical, f"{BASE_URL}/assets/img/og-image.png", structured),
-        header(prefix, nav),
+        header(prefix),
         f"""
 <main id="main">
 
@@ -587,7 +616,7 @@ def build_hub():
 
     </div>
 
-{ad_slot("rail", 3).replace("  <aside", "    <aside").replace("<div class=\"ad-container\">", "  <div class=\"ad-container\">")}
+{ad_slot("rail", 3)}
   </div>
 
 {ad_slot("leaderboard", 4)}
@@ -604,16 +633,13 @@ def build_hub():
 # Static pages
 # ---------------------------------------------------------------------------
 
-def build_page(slug, title, description, heading, subtitle, body, robots="index, follow"):
+def build_page(slug, title, description, heading, subtitle, body, current=None):
     prefix = ""
     canonical = f"{BASE_URL}/{slug}"
     extra = ""
-    if robots != "index, follow":
-        extra = ""
-    nav = [("All tools", "./"), ("Privacy", "privacy.html"), ("Terms", "terms.html"), ("Contact", "contact.html")]
     return "".join([
         head(prefix, title, description, canonical, f"{BASE_URL}/assets/img/og-image.png", extra),
-        header(prefix, nav),
+        header(prefix, current),
         f"""
 <main id="main" class="wrap">
   <div class="page-header">
@@ -713,10 +739,27 @@ TERMS_BODY = """    <div class="callout">
     <p>Questions about these terms? Use the <a href="contact.html">contact page</a>.</p>"""
 
 
+EMAIL_USER, EMAIL_DOMAIN = CONTACT_EMAIL.split("@")
+EMAIL_DOMAIN_SPACED = EMAIL_DOMAIN.replace(".", " [dot] ")
+
 CONTACT_BODY = f"""    <div class="callout">
       <p>Email us at
-        <!-- CHANGE ME: set CONTACT_EMAIL in tools/content.py and re-run the build. -->
-        <a class="contact-link" href="mailto:{CONTACT_EMAIL}">{CONTACT_EMAIL}</a>
+        <!-- CHANGE ME: set CONTACT_EMAIL in tools/content.py and re-run the build.
+             The address is assembled by script so harvesters scraping the raw
+             HTML do not find a usable mailto: string. Without JavaScript the
+             readable form below still tells a human where to write. -->
+        <a class="contact-link" id="contact-email" href="#contact-email"
+           data-user="{EMAIL_USER}" data-domain="{EMAIL_DOMAIN}"
+           >{EMAIL_USER} [at] {EMAIL_DOMAIN_SPACED}</a>
+        <script>
+        (function () {{
+          var a = document.getElementById('contact-email');
+          if (!a) return;
+          var address = a.dataset.user + String.fromCharCode(64) + a.dataset.domain;
+          a.href = 'mailto:' + address;
+          a.textContent = address;
+        }})();
+        </script>
       </p>
       <p>There is no contact form here, and that is deliberate: a form would need a server to receive it, and this site intentionally has no backend at all.</p>
     </div>
@@ -871,15 +914,15 @@ def main():
     write("privacy.html", build_page(
         "privacy.html", f"Privacy Policy - {SITE_NAME}",
         "How this site handles your data: images are converted locally in your browser and are never uploaded. Details on cookies, advertising and analytics.",
-        "Privacy Policy", f"Last updated: {LAST_UPDATED}", PRIVACY_BODY))
+        "Privacy Policy", f"Last updated: {LAST_UPDATED}", PRIVACY_BODY, current="Privacy"))
     write("terms.html", build_page(
         "terms.html", f"Terms of Use & Disclaimer - {SITE_NAME}",
         "Terms of use and disclaimer for these free image converters: acceptable use, warranty disclaimer and limitation of liability.",
-        "Terms of Use & Disclaimer", f"Last updated: {LAST_UPDATED}", TERMS_BODY))
+        "Terms of Use & Disclaimer", f"Last updated: {LAST_UPDATED}", TERMS_BODY, current="Terms"))
     write("contact.html", build_page(
         "contact.html", f"Contact - {SITE_NAME}",
         "Get in touch about these free image converters: bug reports, feature requests, accessibility issues and privacy questions.",
-        "Contact", "We read every message, and reply to most within a few days.", CONTACT_BODY))
+        "Contact", "We read every message, and reply to most within a few days.", CONTACT_BODY, current="Contact"))
     write("404.html", build_404())
     write("sitemap.xml", build_sitemap())
     write("robots.txt", build_robots())
