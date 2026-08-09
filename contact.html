@@ -78,18 +78,13 @@
   <article class="prose">
     <div class="callout">
       <p>Email us at
-        <!-- CHANGE ME: set CONTACT_EMAIL in tools/content.py and re-run the build.
+        <!-- No contact form is configured yet: set WEB3FORMS_ACCESS_KEY in
+             tools/content.py and rebuild to replace this with a form.
 
-             Two separate protections:
-               1. The raw HTML never contains the assembled address. It is split
-                  across data- attributes, and the "@" is added at runtime, so a
-                  harvester scraping the source finds nothing usable.
-               2. The VISIBLE text stays in [at] / [dot] form permanently. The
-                  script only fills in the mailto: href, so a click still opens
-                  the visitor's mail app, but nothing on screen can be copied
-                  straight into a spam list.
-             With JavaScript off, the readable form still tells a human where to
-             write. -->
+             Until then the address is protected two ways: the raw HTML splits it
+             across data- attributes with the "@" added at runtime, and the
+             visible text stays in [at] / [dot] form, so it cannot be copied off
+             the screen either. Script only fills in the mailto: href. -->
         <a class="contact-link" id="contact-email" href="#contact-email"
            data-user="sh.tasmi91" data-domain="gmail.com"
            >sh.tasmi91 [at] gmail [dot] com</a>
@@ -102,7 +97,8 @@
         })();
         </script>
       </p>
-      <p>There is no contact form here, and that is deliberate: a form would need a server to receive it, and this site intentionally has no backend at all.</p>
+      <p>There is no contact form here yet, and there is deliberately no backend:
+        this site is static, so a form has to be handled by an external service.</p>
     </div>
 
     <h2>What to get in touch about</h2>
@@ -123,7 +119,7 @@
     </ul>
 
     <h2>A note on your images</h2>
-    <p>We never receive the images you convert — they are processed on your device and never uploaded. That also means we cannot look up or recover anything you converted. If you email us a file for debugging, you are sending it to us yourself, by choice.</p>
+    <p>We never receive the images you convert — they are processed on your device and never uploaded. That also means we cannot look up or recover anything you converted. If you choose to send us a file for debugging, you are sending it to us yourself, by choice.</p>
 
     <p><a href="./">← Back to all converters</a></p>
   </article>

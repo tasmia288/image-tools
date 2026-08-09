@@ -19,6 +19,7 @@ domain, built for Google AdSense monetisation.
 - [Configure the site URL](#configure-the-site-url)
 - [Add your Google AdSense code](#add-your-google-adsense-code)
 - [Update the SEO metadata](#update-the-seo-metadata)
+- [Enable the contact form](#enable-the-contact-form)
 - [Search Console and Analytics](#search-console-and-analytics)
 - [How the converters work](#how-the-converters-work)
 - [Testing](#testing)
@@ -237,6 +238,43 @@ Social cards live at `assets/img/og-<slug>.png` (1200×630), one per tool.
 
 Validate changes with the [Rich Results Test](https://search.google.com/test/rich-results).
 
+## Enable the contact form
+
+The contact page can serve either a real form or an obfuscated email link, and
+it picks automatically based on one setting in `tools/content.py`:
+
+```python
+WEB3FORMS_ACCESS_KEY = ""      # empty -> email fallback; set -> contact form
+```
+
+To switch it on:
+
+1. Go to [web3forms.com](https://web3forms.com), enter the address you want
+   messages delivered to, and collect the access key from your inbox. No account
+   is needed, and the free tier allows 250 submissions a month.
+2. Paste the key into `WEB3FORMS_ACCESS_KEY`.
+3. `python3 tools/build.py`, then commit and push.
+
+That single change swaps the email link for the form, adds the form script to
+the page, and switches the privacy policy from its "Contacting us" paragraph to
+a full disclosure of what the form sends and to whom. Your address then appears
+nowhere in the site at all — it lives only in the Web3Forms dashboard.
+
+The key is meant to be public: it only authorises delivery to the address you
+registered, so it is safe in the HTML.
+
+**Using Formspree instead?** Change the form's `action` to
+`https://formspree.io/f/YOUR_FORM_ID` in `CONTACT_INTRO_FORM` and drop the
+`access_key` hidden input. The field names (`name`, `email`, `message`) and the
+JSON response shape are compatible, so `assets/js/contact-form.js` needs no
+changes. Formspree's free tier is 50 submissions a month.
+
+**Spam handling.** The form includes a `botcheck` honeypot field, hidden from
+people and removed from the tab order; Web3Forms discards any submission that
+fills it. That stops naive bots without inflicting a CAPTCHA on real visitors.
+If you later get spam, add hCaptcha in the Web3Forms dashboard — note it loads a
+third-party script on the contact page.
+
 ## Search Console and Analytics
 
 Both hook into `ADSENSE_HEAD_COMMENT` in `tools/build.py`:
@@ -315,13 +353,15 @@ Honest list, so you don't get surprise support email:
   Failures are reported per file rather than producing a blank image.
 - **JavaScript is required**, since conversion happens on the client. A
   `<noscript>` message explains this.
-- **The contact address is obfuscated, not hidden.** Two layers: the raw HTML
-  splits it across `data-` attributes with the `@` added at runtime, and the
-  visible text stays permanently as `sh.tasmi91 [at] gmail [dot] com` — script
-  only fills in the `mailto:` href, so a click still opens the visitor's mail
-  app. This defeats harvesters that scrape HTML or copy on-screen text; a
-  scraper that executes JavaScript and reads the `href` will still get it.
-  A contact form would need a backend, which this site deliberately does not have.
+- **The contact form is the one third-party call on the site**, and only when a
+  visitor presses Send. No Web3Forms script is loaded; the page posts to their
+  API. If it is unreachable the form says so and the visitor stays on the page.
+- **Until a Web3Forms key is set**, the contact page falls back to an obfuscated
+  email link: the address is split across `data-` attributes with the `@` added
+  at runtime, and the visible text stays as `[at] / [dot]` form. That defeats
+  harvesters scraping HTML or copying on-screen text, but not a scraper that
+  executes JavaScript and reads the `href`. Enabling the form removes the
+  address from the site entirely.
 - **The theme toggle writes one `localStorage` key** (`theme` = `light`/`dark`).
   This is disclosed explicitly in the privacy policy; nothing else is stored.
 - **Colour management follows the browser.** Wide-gamut sources are converted to

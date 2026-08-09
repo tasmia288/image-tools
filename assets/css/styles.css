@@ -496,3 +496,33 @@ a:hover { color: var(--accent-hover); }
 /* Contact page: the address stays in [at]/[dot] form on screen, so this hint
    explains that the link is still clickable. */
 .contact-hint { font-size: .85rem; color: var(--text-faint); white-space: nowrap; }
+
+/* ---------- Contact form ---------- */
+.contact-form {
+  display: grid; gap: 1.1rem;
+  max-width: 34rem; margin: 0 0 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface);
+}
+.field { display: grid; gap: .35rem; }
+.field label { font-weight: 600; font-size: .93rem; }
+.field input,
+.field textarea {
+  font: inherit; font-size: .96rem; color: var(--text);
+  width: 100%; padding: .65rem .8rem;
+  border: 1px solid var(--border-strong); border-radius: 9px;
+  background: var(--bg);
+  transition: border-color .15s ease;
+}
+.field textarea { resize: vertical; min-height: 8rem; line-height: 1.55; }
+.field input:focus, .field textarea:focus { border-color: var(--accent); }
+.field input::placeholder, .field textarea::placeholder { color: var(--text-faint); }
+.field-hint { font-size: .82rem; color: var(--text-faint); }
+.contact-form .btn { justify-self: start; }
+
+.form-status { margin: 0; font-size: .92rem; color: var(--text-muted); }
+.form-status:empty { display: none; }
+.form-status.is-done { color: var(--success); font-weight: 550; }
+.form-status.is-error { color: var(--danger); font-weight: 550; }
+.form-note { font-size: .87rem; color: var(--text-muted); max-width: 34rem; }

@@ -16,6 +16,15 @@ BASE_URL = "https://convert-img.me"
 SITE_NAME = "Image Converter Tools"
 CONTACT_EMAIL = "sh.tasmi91@gmail.com"
 
+# Contact form (Web3Forms). Get a free key at https://web3forms.com — enter the
+# address you want messages delivered to and the key arrives by email; no account
+# needed. The key is designed to be public: it only authorises sending mail to
+# the address you registered, and your address never appears in the page.
+#
+# While this is empty the contact page falls back to the obfuscated email link,
+# so the site always has a working contact method.
+WEB3FORMS_ACCESS_KEY = ""
+
 # Ad slots render as commented-out HTML by default, so visitors (and AdSense
 # reviewers) never see empty grey boxes. Flip to True only while working on the
 # layout locally — never in a build you deploy.

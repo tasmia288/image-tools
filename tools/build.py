@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from content import (  # noqa: E402
     AD_PLACEHOLDERS, BASE_URL, COMMON_FAQS, CONTACT_EMAIL, LAST_MODIFIED, LAST_UPDATED,
-    SITE_NAME, TOOLS,
+    SITE_NAME, TOOLS, WEB3FORMS_ACCESS_KEY,
 )
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -664,6 +664,17 @@ def build_page(slug, title, description, heading, subtitle, body, current=None):
     ])
 
 
+# Only claim we use a form provider when one is actually configured.
+CONTACT_FORM_PRIVACY = ("""
+    <h2>The contact form</h2>
+    <p>The contact page carries a form. If you fill it in and press Send, the name, email address and message you typed are transmitted to <a href="https://web3forms.com" rel="nofollow noopener" target="_blank">Web3Forms</a>, which forwards them to our inbox and, like any service receiving a request, sees your IP address. We use their delivery service only; they are not given the message for any other purpose. See the <a href="https://web3forms.com/privacy" rel="nofollow noopener" target="_blank">Web3Forms privacy policy</a>.</p>
+    <p>Two things worth being precise about. Nothing is sent unless you press Send — merely opening the contact page contacts no one. And the form has no file field: your images are converted on your device and are never part of a message.</p>
+    <p>We keep messages only as long as we need them to answer you.</p>
+""" if WEB3FORMS_ACCESS_KEY else """
+    <h2>Contacting us</h2>
+    <p>The contact page lists an email address and nothing else — no form, no tracking, and no request is made when you open it. If you email us, we hold your message only as long as we need it to reply.</p>
+""")
+
 PRIVACY_BODY = f"""    <div class="callout">
       <p><strong>The short version.</strong> Images you convert on this site never leave your device. The conversion runs inside your browser, and there is no server that could receive a file. We do not ask for an account, and we do not collect names, email addresses or images.</p>
     </div>
@@ -694,6 +705,7 @@ PRIVACY_BODY = f"""    <div class="callout">
     </ul>
     <p>If you are in the European Economic Area, the United Kingdom or Switzerland, a consent notice is presented before personalised advertising cookies are set, as required by Google's EU user consent policy.</p>
 
+{CONTACT_FORM_PRIVACY}
     <h2>Analytics</h2>
     <p>If web analytics are enabled on this site, they are used only in aggregate to understand which pages are visited and from where. Analytics never receive your images or filenames.</p>
 
@@ -745,26 +757,59 @@ TERMS_BODY = """    <div class="callout">
     <p>Questions about these terms? Use the <a href="contact.html">contact page</a>.</p>"""
 
 
-EMAIL_USER, EMAIL_DOMAIN = CONTACT_EMAIL.split("@")
-EMAIL_DOMAIN_SPACED = EMAIL_DOMAIN.replace(".", " [dot] ")
+CONTACT_INTRO_FORM = """    <p>Send us a message and it lands in our inbox. There is no account to create,
+      and we only use your address to reply.</p>
 
-CONTACT_BODY = f"""    <div class="callout">
+    <form id="contact-form" class="contact-form" action="https://api.web3forms.com/submit" method="POST">
+      <input type="hidden" name="access_key" value="{key}">
+      <input type="hidden" name="subject" value="New message from {site}">
+      <input type="hidden" name="from_name" value="{site}">
+      <!-- Honeypot: invisible to people, tempting to bots. Web3Forms discards
+           any submission where this field has been filled in. -->
+      <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off"
+             aria-hidden="true" style="display:none">
+
+      <div class="field">
+        <label for="cf-name">Your name</label>
+        <input type="text" id="cf-name" name="name" required maxlength="100" autocomplete="name">
+      </div>
+
+      <div class="field">
+        <label for="cf-email">Your email</label>
+        <input type="email" id="cf-email" name="email" required maxlength="200" autocomplete="email">
+        <span class="field-hint">Only used to reply to you.</span>
+      </div>
+
+      <div class="field">
+        <label for="cf-message">Message</label>
+        <textarea id="cf-message" name="message" rows="6" required maxlength="4000"
+                  placeholder="What is on your mind? If a file will not convert, tell us your browser and the image's size."></textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Send message</button>
+      <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+    </form>
+
+    <p class="form-note">
+      Messages are delivered by <a href="https://web3forms.com" rel="nofollow noopener" target="_blank">Web3Forms</a>,
+      which forwards them to our inbox. What you type here goes to them; see the
+      <a href="privacy.html">privacy policy</a>. Your images never do — they are
+      converted on your own device and are not part of this form.
+    </p>
+"""
+
+CONTACT_INTRO_EMAIL = """    <div class="callout">
       <p>Email us at
-        <!-- CHANGE ME: set CONTACT_EMAIL in tools/content.py and re-run the build.
+        <!-- No contact form is configured yet: set WEB3FORMS_ACCESS_KEY in
+             tools/content.py and rebuild to replace this with a form.
 
-             Two separate protections:
-               1. The raw HTML never contains the assembled address. It is split
-                  across data- attributes, and the "@" is added at runtime, so a
-                  harvester scraping the source finds nothing usable.
-               2. The VISIBLE text stays in [at] / [dot] form permanently. The
-                  script only fills in the mailto: href, so a click still opens
-                  the visitor's mail app, but nothing on screen can be copied
-                  straight into a spam list.
-             With JavaScript off, the readable form still tells a human where to
-             write. -->
+             Until then the address is protected two ways: the raw HTML splits it
+             across data- attributes with the "@" added at runtime, and the
+             visible text stays in [at] / [dot] form, so it cannot be copied off
+             the screen either. Script only fills in the mailto: href. -->
         <a class="contact-link" id="contact-email" href="#contact-email"
-           data-user="{EMAIL_USER}" data-domain="{EMAIL_DOMAIN}"
-           >{EMAIL_USER} [at] {EMAIL_DOMAIN_SPACED}</a>
+           data-user="{user}" data-domain="{domain}"
+           >{user} [at] {domain_spaced}</a>
         <span class="contact-hint">(click to open your mail app)</span>
         <script>
         (function () {{
@@ -774,9 +819,27 @@ CONTACT_BODY = f"""    <div class="callout">
         }})();
         </script>
       </p>
-      <p>There is no contact form here, and that is deliberate: a form would need a server to receive it, and this site intentionally has no backend at all.</p>
+      <p>There is no contact form here yet, and there is deliberately no backend:
+        this site is static, so a form has to be handled by an external service.</p>
     </div>
+"""
 
+
+def contact_body():
+    """The contact page's opening block: a real form once a Web3Forms key is
+    configured, otherwise an obfuscated mailto link so the page is never without
+    a way to reach us."""
+    if WEB3FORMS_ACCESS_KEY:
+        intro = CONTACT_INTRO_FORM.format(key=esc(WEB3FORMS_ACCESS_KEY), site=esc(SITE_NAME))
+        trailer = '\n    <script src="assets/js/contact-form.js" defer></script>'
+    else:
+        user, domain = CONTACT_EMAIL.split("@")
+        intro = CONTACT_INTRO_EMAIL.format(
+            user=user, domain=domain, domain_spaced=domain.replace(".", " [dot] ")
+        )
+        trailer = ""
+
+    return intro + """
     <h2>What to get in touch about</h2>
     <ul>
       <li><strong>A file that will not convert.</strong> Tell us your browser and version, your operating system, and the image's dimensions and file size. Please do not attach the image unless you are happy to share it.</li>
@@ -795,9 +858,9 @@ CONTACT_BODY = f"""    <div class="callout">
     </ul>
 
     <h2>A note on your images</h2>
-    <p>We never receive the images you convert — they are processed on your device and never uploaded. That also means we cannot look up or recover anything you converted. If you email us a file for debugging, you are sending it to us yourself, by choice.</p>
+    <p>We never receive the images you convert — they are processed on your device and never uploaded. That also means we cannot look up or recover anything you converted. If you choose to send us a file for debugging, you are sending it to us yourself, by choice.</p>
 
-    <p><a href="./">← Back to all converters</a></p>"""
+    <p><a href="./">← Back to all converters</a></p>""" + trailer
 
 
 def build_404():
@@ -939,7 +1002,7 @@ def main():
     write("contact.html", build_page(
         "contact.html", f"Contact - {SITE_NAME}",
         "Get in touch about these free image converters: bug reports, feature requests, accessibility issues and privacy questions.",
-        "Contact", "We read every message, and reply to most within a few days.", CONTACT_BODY, current="Contact"))
+        "Contact", "We read every message, and reply to most within a few days.", contact_body(), current="Contact"))
     write("404.html", build_404())
     write("sitemap.xml", build_sitemap())
     write("robots.txt", build_robots())
