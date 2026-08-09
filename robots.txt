@@ -1,6 +1,4 @@
 # robots.txt - Image Converter Tools
-# Note: crawlers only read robots.txt at the domain root. On a github.io project
-# site this file has no effect; submit the sitemap in Search Console instead.
 
 User-agent: *
 Allow: /
@@ -12,4 +10,4 @@ Allow: /
 User-agent: AdsBot-Google
 Allow: /
 
-Sitemap: https://tasmia288.github.io/image-tools/sitemap.xml
+Sitemap: https://convert-img.me/sitemap.xml

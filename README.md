@@ -4,8 +4,8 @@ Free, static, client-side image converters for WebP, PNG and JPG. No backend, no
 dependencies, no tracking. Images are decoded and re-encoded by the visitor's own
 browser and never leave their device.
 
-Live at **https://tasmia288.github.io/image-tools/** — hosted free on GitHub Pages,
-built for Google AdSense monetisation.
+Live at **https://convert-img.me** — hosted free on GitHub Pages with a custom
+domain, built for Google AdSense monetisation.
 
 ---
 
@@ -133,28 +133,30 @@ git push
 
 Every push to `main` redeploys automatically, in a minute or two.
 
-### Using a custom domain
+### Custom domain
 
-1. Add a `CNAME` file at the repository root containing just your domain.
-2. Point a `CNAME` DNS record at `tasmia288.github.io`.
-3. Set the domain under Settings → Pages, and tick *Enforce HTTPS*.
-4. Update `BASE_URL` (next section) and rebuild.
+Already set up: the `CNAME` file at the repository root holds `convert-img.me`,
+DNS points at GitHub's Pages IPs, and HTTPS is serving. To change domains, edit
+`CNAME`, update `BASE_URL` (next section), rebuild, and update the DNS record.
 
 ## Configure the site URL
 
 **One line, one place:** `BASE_URL` at the top of `tools/content.py`.
 
 ```python
-BASE_URL = "https://tasmia288.github.io/image-tools"
+BASE_URL = "https://convert-img.me"
 ```
 
 Re-run the build and every canonical tag, Open Graph URL, sitemap entry,
 manifest path, `robots.txt` line and absolute `404.html` link updates together.
 
-**Note on `robots.txt`:** crawlers only read it at the domain root. On a project
-site it lives at `/image-tools/robots.txt`, which Google will not fetch — the
-file only takes effect on a custom domain or a user site. Either way, submit
-`sitemap.xml` directly in Search Console.
+`404.html` gets root-relative links derived from `BASE_URL`'s path (`/` on a
+custom domain, `/image-tools/` on a project site), because GitHub Pages serves
+it for missing paths at any depth and relative links would break.
+
+`robots.txt` only takes effect at a domain root. On `convert-img.me` it does;
+if you ever move back to a `github.io/<repo>/` path the generator adds a comment
+noting it is inert there. Either way, submit `sitemap.xml` in Search Console.
 
 ## Add your Google AdSense code
 
@@ -243,8 +245,8 @@ Both hook into `ADSENSE_HEAD_COMMENT` in `tools/build.py`:
 <meta name="google-site-verification" content="YOUR_TOKEN">
 ```
 
-Rebuild, push, then press Verify and submit
-`https://tasmia288.github.io/image-tools/sitemap.xml` under **Sitemaps**.
+Rebuild, push, then press Verify and submit `https://convert-img.me/sitemap.xml`
+under **Sitemaps**. Add `convert-img.me` as the property, not the github.io URL.
 
 Analytics is deliberately absent so the site makes no third-party requests by
 default. Paste your `gtag.js` snippet in the same place to enable it.

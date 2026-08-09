@@ -11,7 +11,8 @@ See the "Adding a converter" section of the top-level README.
 # --------------------------------------------------------------------------
 # Site-wide settings. Change BASE_URL when you move to a custom domain.
 # --------------------------------------------------------------------------
-BASE_URL = "https://tasmia288.github.io/image-tools"
+# No trailing slash. Must match the CNAME file at the repository root.
+BASE_URL = "https://convert-img.me"
 SITE_NAME = "Image Converter Tools"
 CONTACT_EMAIL = "sh.tasmi91@gmail.com"
 

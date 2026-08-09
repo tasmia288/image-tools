@@ -15,6 +15,7 @@ import html
 import json
 import pathlib
 import sys
+from urllib.parse import urlparse
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from content import (  # noqa: E402
@@ -24,6 +25,11 @@ from content import (  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 esc = html.escape
+
+# Path component of BASE_URL, always with a trailing slash: "/" on a custom
+# domain, "/image-tools/" on a github.io project site. Used by 404.html, which
+# cannot use relative links because it is served for missing paths at any depth.
+SITE_PATH = (urlparse(BASE_URL).path.rstrip("/") or "") + "/"
 
 
 # ---------------------------------------------------------------------------
@@ -789,7 +795,7 @@ CONTACT_BODY = f"""    <div class="callout">
 
 def build_404():
     links = "\n      ".join(
-        f'<li><a href="{BASE_URL}/{t["slug"]}/">{esc(t["h1"])}</a></li>' for t in TOOLS
+        f'<li><a href="{SITE_PATH}{t["slug"]}/">{esc(t["h1"])}</a></li>' for t in TOOLS
     )
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -800,16 +806,16 @@ def build_404():
 <title>Page not found - {esc(SITE_NAME)}</title>
 <meta name="description" content="That page does not exist. Head back to the free image converters.">
 <meta name="robots" content="noindex, follow">
-<link rel="icon" href="{BASE_URL}/assets/img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="{SITE_PATH}assets/img/favicon.svg" type="image/svg+xml">
 <!-- GitHub Pages serves 404.html for any missing path at any depth, so these
-     references must be absolute. Change the prefix if you move domains. -->
-<link rel="stylesheet" href="{BASE_URL}/assets/css/styles.css">
+     links are root-relative rather than relative. Generated from BASE_URL. -->
+<link rel="stylesheet" href="{SITE_PATH}assets/css/styles.css">
 </head>
 <body>
 
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="{BASE_URL}/" aria-label="{esc(SITE_NAME)}, home">
+    <a class="brand" href="{SITE_PATH}" aria-label="{esc(SITE_NAME)}, home">
       {BRAND_SVG}
       <span class="brand-text">Image&nbsp;Tools</span>
     </a>
@@ -824,8 +830,8 @@ def build_404():
     <p>The page you asked for does not exist — it may have been renamed, or the link may be mistyped.</p>
     <ul>
       {links}
-      <li><a href="{BASE_URL}/">All tools</a></li>
-      <li><a href="{BASE_URL}/contact.html">Contact</a></li>
+      <li><a href="{SITE_PATH}">All tools</a></li>
+      <li><a href="{SITE_PATH}contact.html">Contact</a></li>
     </ul>
   </article>
 </main>
@@ -861,10 +867,14 @@ def build_sitemap():
 
 
 def build_robots():
+    at_root = SITE_PATH == "/"
+    caveat = "" if at_root else (
+        "# Note: crawlers only read robots.txt at the domain root. This site is served\n"
+        "# from a subpath, so this file has no effect; submit the sitemap in Search\n"
+        "# Console instead.\n"
+    )
     return f"""# robots.txt - {SITE_NAME}
-# Note: crawlers only read robots.txt at the domain root. On a github.io project
-# site this file has no effect; submit the sitemap in Search Console instead.
-
+{caveat}
 User-agent: *
 Allow: /
 
