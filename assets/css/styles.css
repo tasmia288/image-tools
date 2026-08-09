@@ -492,3 +492,7 @@ a:hover { color: var(--accent-hover); }
     margin-block: 0; padding-top: 1.4rem;
   }
 }
+
+/* Contact page: the address stays in [at]/[dot] form on screen, so this hint
+   explains that the link is still clickable. */
+.contact-hint { font-size: .85rem; color: var(--text-faint); white-space: nowrap; }

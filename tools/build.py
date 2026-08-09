@@ -751,19 +751,26 @@ EMAIL_DOMAIN_SPACED = EMAIL_DOMAIN.replace(".", " [dot] ")
 CONTACT_BODY = f"""    <div class="callout">
       <p>Email us at
         <!-- CHANGE ME: set CONTACT_EMAIL in tools/content.py and re-run the build.
-             The address is assembled by script so harvesters scraping the raw
-             HTML do not find a usable mailto: string. Without JavaScript the
-             readable form below still tells a human where to write. -->
+
+             Two separate protections:
+               1. The raw HTML never contains the assembled address. It is split
+                  across data- attributes, and the "@" is added at runtime, so a
+                  harvester scraping the source finds nothing usable.
+               2. The VISIBLE text stays in [at] / [dot] form permanently. The
+                  script only fills in the mailto: href, so a click still opens
+                  the visitor's mail app, but nothing on screen can be copied
+                  straight into a spam list.
+             With JavaScript off, the readable form still tells a human where to
+             write. -->
         <a class="contact-link" id="contact-email" href="#contact-email"
            data-user="{EMAIL_USER}" data-domain="{EMAIL_DOMAIN}"
            >{EMAIL_USER} [at] {EMAIL_DOMAIN_SPACED}</a>
+        <span class="contact-hint">(click to open your mail app)</span>
         <script>
         (function () {{
           var a = document.getElementById('contact-email');
           if (!a) return;
-          var address = a.dataset.user + String.fromCharCode(64) + a.dataset.domain;
-          a.href = 'mailto:' + address;
-          a.textContent = address;
+          a.href = 'mailto:' + a.dataset.user + String.fromCharCode(64) + a.dataset.domain;
         }})();
         </script>
       </p>

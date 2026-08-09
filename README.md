@@ -315,10 +315,12 @@ Honest list, so you don't get surprise support email:
   Failures are reported per file rather than producing a blank image.
 - **JavaScript is required**, since conversion happens on the client. A
   `<noscript>` message explains this.
-- **The contact address is obfuscated, not hidden.** It is assembled by a small
-  script from `data-` attributes, so the raw HTML contains no usable `mailto:`
-  string and the readable fallback is `sh.tasmi91 [at] gmail [dot] com`. This
-  defeats naive harvesters; a scraper that executes JavaScript will still get it.
+- **The contact address is obfuscated, not hidden.** Two layers: the raw HTML
+  splits it across `data-` attributes with the `@` added at runtime, and the
+  visible text stays permanently as `sh.tasmi91 [at] gmail [dot] com` — script
+  only fills in the `mailto:` href, so a click still opens the visitor's mail
+  app. This defeats harvesters that scrape HTML or copy on-screen text; a
+  scraper that executes JavaScript and reads the `href` will still get it.
   A contact form would need a backend, which this site deliberately does not have.
 - **The theme toggle writes one `localStorage` key** (`theme` = `light`/`dark`).
   This is disclosed explicitly in the privacy policy; nothing else is stored.
