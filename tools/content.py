@@ -16,14 +16,31 @@ BASE_URL = "https://convert-img.me"
 SITE_NAME = "Image Converter Tools"
 CONTACT_EMAIL = "sh.tasmi91@gmail.com"
 
-# Contact form (Web3Forms). Get a free key at https://web3forms.com — enter the
-# address you want messages delivered to and the key arrives by email; no account
-# needed. The key is designed to be public: it only authorises sending mail to
-# the address you registered, and your address never appears in the page.
+# --------------------------------------------------------------------------
+# Contact form
+# --------------------------------------------------------------------------
+# Neither provider needs an account. Leave "target" empty and the contact page
+# falls back to an obfuscated email link, so the site always has a way to reach
+# you.
 #
-# While this is empty the contact page falls back to the obfuscated email link,
-# so the site always has a working contact method.
-WEB3FORMS_ACCESS_KEY = ""
+#   provider "formsubmit"  (formsubmit.co)
+#     target = your email address, e.g. "you@gmail.com"
+#       Works immediately: submit once, click the activation link they email
+#       you, done. BUT the address goes into the form's action URL in plain
+#       text, so scrapers can read it — which defeats the point of using a form.
+#     target = the random alias FormSubmit shows you after activation,
+#       e.g. "a1b2c3d4e5f6"
+#       Same behaviour, address no longer in the page. Use this one.
+#
+#   provider "web3forms"  (web3forms.com)
+#     target = the access key emailed to you after entering your address on
+#       their site. Your address is never in the page at any point.
+#
+# The build prints a warning if the configured target exposes your address.
+CONTACT_FORM = {
+    "provider": "formsubmit",
+    "target": "",
+}
 
 # Ad slots render as commented-out HTML by default, so visitors (and AdSense
 # reviewers) never see empty grey boxes. Flip to True only while working on the

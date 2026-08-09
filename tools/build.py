@@ -19,8 +19,8 @@ from urllib.parse import urlparse
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from content import (  # noqa: E402
-    AD_PLACEHOLDERS, BASE_URL, COMMON_FAQS, CONTACT_EMAIL, LAST_MODIFIED, LAST_UPDATED,
-    SITE_NAME, TOOLS, WEB3FORMS_ACCESS_KEY,
+    AD_PLACEHOLDERS, BASE_URL, COMMON_FAQS, CONTACT_EMAIL, CONTACT_FORM, LAST_MODIFIED,
+    LAST_UPDATED, SITE_NAME, TOOLS,
 )
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -30,6 +30,52 @@ esc = html.escape
 # domain, "/image-tools/" on a github.io project site. Used by 404.html, which
 # cannot use relative links because it is served for missing paths at any depth.
 SITE_PATH = (urlparse(BASE_URL).path.rstrip("/") or "") + "/"
+
+
+def form_config():
+    """Resolves CONTACT_FORM into everything the templates need, or None when no
+    provider is configured (in which case the page falls back to an email link).
+    """
+    target = (CONTACT_FORM.get("target") or "").strip()
+    if not target:
+        return None
+
+    provider = CONTACT_FORM.get("provider", "formsubmit")
+    if provider == "web3forms":
+        return {
+            "name": "Web3Forms",
+            "url": "https://web3forms.com",
+            "privacy_url": "https://web3forms.com/privacy",
+            "action": "https://api.web3forms.com/submit",
+            "ajax": "https://api.web3forms.com/submit",
+            "honeypot": "botcheck",
+            "hidden": [
+                ("access_key", target),
+                ("subject", f"New message from {SITE_NAME}"),
+                ("from_name", SITE_NAME),
+            ],
+            "exposes_email": "@" in target,
+        }
+    if provider == "formsubmit":
+        return {
+            "name": "FormSubmit",
+            "url": "https://formsubmit.co",
+            "privacy_url": "https://formsubmit.co/privacy",
+            # Plain endpoint for the no-JavaScript path, /ajax/ for fetch.
+            "action": f"https://formsubmit.co/{target}",
+            "ajax": f"https://formsubmit.co/ajax/{target}",
+            "honeypot": "_honey",
+            "hidden": [
+                ("_captcha", "false"),
+                ("_subject", f"New message from {SITE_NAME}"),
+                ("_template", "table"),
+            ],
+            "exposes_email": "@" in target,
+        }
+    raise SystemExit(f"Unknown contact form provider: {provider!r}")
+
+
+FORM = form_config()
 
 
 # ---------------------------------------------------------------------------
@@ -664,15 +710,15 @@ def build_page(slug, title, description, heading, subtitle, body, current=None):
     ])
 
 
-# Only claim we use a form provider when one is actually configured.
-CONTACT_FORM_PRIVACY = ("""
+# Only describe a data flow the page actually has.
+CONTACT_FORM_PRIVACY = (f"""
     <h2>The contact form</h2>
-    <p>The contact page carries a form. If you fill it in and press Send, the name, email address and message you typed are transmitted to <a href="https://web3forms.com" rel="nofollow noopener" target="_blank">Web3Forms</a>, which forwards them to our inbox and, like any service receiving a request, sees your IP address. We use their delivery service only; they are not given the message for any other purpose. See the <a href="https://web3forms.com/privacy" rel="nofollow noopener" target="_blank">Web3Forms privacy policy</a>.</p>
-    <p>Two things worth being precise about. Nothing is sent unless you press Send — merely opening the contact page contacts no one. And the form has no file field: your images are converted on your device and are never part of a message.</p>
+    <p>The contact page carries a form. If you fill it in and press Send, the name, email address and message you typed are transmitted to <a href="{FORM['url']}" rel="nofollow noopener" target="_blank">{FORM['name']}</a>, which forwards them to our inbox and, like any service receiving a request, sees your IP address. We use their delivery service only. See the <a href="{FORM['privacy_url']}" rel="nofollow noopener" target="_blank">{FORM['name']} privacy policy</a>.</p>
+    <p>Two things worth being precise about. Nothing is sent unless you press Send — merely opening the contact page contacts no one, and no script from them is loaded. And the form has no file field: your images are converted on your device and are never part of a message.</p>
     <p>We keep messages only as long as we need them to answer you.</p>
-""" if WEB3FORMS_ACCESS_KEY else """
+""" if FORM else """
     <h2>Contacting us</h2>
-    <p>The contact page lists an email address and nothing else — no form, no tracking, and no request is made when you open it. If you email us, we hold your message only as long as we need it to reply.</p>
+    <p>The contact page lists an email address and nothing else — no form, no tracking, and no request is made to anyone when you open it. If you email us, we hold your message only as long as we need it to reply.</p>
 """)
 
 PRIVACY_BODY = f"""    <div class="callout">
@@ -757,16 +803,21 @@ TERMS_BODY = """    <div class="callout">
     <p>Questions about these terms? Use the <a href="contact.html">contact page</a>.</p>"""
 
 
-CONTACT_INTRO_FORM = """    <p>Send us a message and it lands in our inbox. There is no account to create,
+def contact_form_markup():
+    """The form itself. Field names are the same for both providers; only the
+    endpoint, the honeypot's name and the hidden control fields differ."""
+    hidden = "\n      ".join(
+        f'<input type="hidden" name="{esc(name)}" value="{esc(value)}">' for name, value in FORM["hidden"]
+    )
+    return f"""    <p>Send us a message and it lands in our inbox. There is no account to create,
       and we only use your address to reply.</p>
 
-    <form id="contact-form" class="contact-form" action="https://api.web3forms.com/submit" method="POST">
-      <input type="hidden" name="access_key" value="{key}">
-      <input type="hidden" name="subject" value="New message from {site}">
-      <input type="hidden" name="from_name" value="{site}">
-      <!-- Honeypot: invisible to people, tempting to bots. Web3Forms discards
-           any submission where this field has been filled in. -->
-      <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off"
+    <form id="contact-form" class="contact-form" method="POST"
+          action="{FORM['action']}" data-ajax-action="{FORM['ajax']}">
+      {hidden}
+      <!-- Honeypot: invisible to people and out of the tab order, tempting to
+           bots. {FORM['name']} discards any submission that fills it in. -->
+      <input type="text" name="{FORM['honeypot']}" tabindex="-1" autocomplete="off"
              aria-hidden="true" style="display:none">
 
       <div class="field">
@@ -791,12 +842,13 @@ CONTACT_INTRO_FORM = """    <p>Send us a message and it lands in our inbox. Ther
     </form>
 
     <p class="form-note">
-      Messages are delivered by <a href="https://web3forms.com" rel="nofollow noopener" target="_blank">Web3Forms</a>,
+      Messages are delivered by <a href="{FORM['url']}" rel="nofollow noopener" target="_blank">{FORM['name']}</a>,
       which forwards them to our inbox. What you type here goes to them; see the
       <a href="privacy.html">privacy policy</a>. Your images never do — they are
       converted on your own device and are not part of this form.
     </p>
 """
+
 
 CONTACT_INTRO_EMAIL = """    <div class="callout">
       <p>Email us at
@@ -829,8 +881,8 @@ def contact_body():
     """The contact page's opening block: a real form once a Web3Forms key is
     configured, otherwise an obfuscated mailto link so the page is never without
     a way to reach us."""
-    if WEB3FORMS_ACCESS_KEY:
-        intro = CONTACT_INTRO_FORM.format(key=esc(WEB3FORMS_ACCESS_KEY), site=esc(SITE_NAME))
+    if FORM:
+        intro = contact_form_markup()
         trailer = '\n    <script src="assets/js/contact-form.js" defer></script>'
     else:
         user, domain = CONTACT_EMAIL.split("@")
@@ -988,6 +1040,12 @@ def write(path, text):
 
 def main():
     print("Building site…")
+    if FORM and FORM["exposes_email"]:
+        print(
+            f"  WARNING: the {FORM['name']} target is an email address, so it appears\n"
+            "           in the form's action URL in plain text and scrapers can read it.\n"
+            "           Swap it for the provider's alias/key to keep it out of the page."
+        )
     write("index.html", build_hub())
     for tool in TOOLS:
         write(f"{tool['slug']}/index.html", build_tool_page(tool))

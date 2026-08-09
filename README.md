@@ -240,40 +240,70 @@ Validate changes with the [Rich Results Test](https://search.google.com/test/ric
 
 ## Enable the contact form
 
-The contact page can serve either a real form or an obfuscated email link, and
-it picks automatically based on one setting in `tools/content.py`:
+The contact page serves either a real form or an obfuscated email link, decided
+by one setting in `tools/content.py`:
 
 ```python
-WEB3FORMS_ACCESS_KEY = ""      # empty -> email fallback; set -> contact form
+CONTACT_FORM = {
+    "provider": "formsubmit",   # or "web3forms"
+    "target": "",               # empty -> email fallback
+}
 ```
 
-To switch it on:
+Neither provider needs an account. Set `target`, run `python3 tools/build.py`,
+commit and push.
 
-1. Go to [web3forms.com](https://web3forms.com), enter the address you want
-   messages delivered to, and collect the access key from your inbox. No account
-   is needed, and the free tier allows 250 submissions a month.
-2. Paste the key into `WEB3FORMS_ACCESS_KEY`.
-3. `python3 tools/build.py`, then commit and push.
+### FormSubmit
 
-That single change swaps the email link for the form, adds the form script to
-the page, and switches the privacy policy from its "Contacting us" paragraph to
-a full disclosure of what the form sends and to whom. Your address then appears
-nowhere in the site at all — it lives only in the Web3Forms dashboard.
+1. Set `target` to your email address and deploy.
+2. Submit the form once yourself. FormSubmit emails you an activation link —
+   click it. Messages now arrive in your inbox.
+3. **Then swap `target` for the random alias** FormSubmit shows you (something
+   like `a1b2c3d4e5f6`) and rebuild.
 
-The key is meant to be public: it only authorises delivery to the address you
-registered, so it is safe in the HTML.
+Step 3 is the important one. While `target` is your email address it appears in
+the form's `action` URL in plain text, which scrapers read just as easily as a
+`mailto:` — so the form is not yet hiding anything. The build prints a warning
+while that is the case:
 
-**Using Formspree instead?** Change the form's `action` to
-`https://formspree.io/f/YOUR_FORM_ID` in `CONTACT_INTRO_FORM` and drop the
-`access_key` hidden input. The field names (`name`, `email`, `message`) and the
-JSON response shape are compatible, so `assets/js/contact-form.js` needs no
-changes. Formspree's free tier is 50 submissions a month.
+```
+  WARNING: the FormSubmit target is an email address, so it appears
+           in the form's action URL in plain text and scrapers can read it.
+```
 
-**Spam handling.** The form includes a `botcheck` honeypot field, hidden from
-people and removed from the tab order; Web3Forms discards any submission that
-fills it. That stops naive bots without inflicting a CAPTCHA on real visitors.
-If you later get spam, add hCaptcha in the Web3Forms dashboard — note it loads a
-third-party script on the contact page.
+### Web3Forms
+
+Enter your address at [web3forms.com](https://web3forms.com) and an access key
+arrives by email. Set `provider` to `"web3forms"` and `target` to that key.
+
+There is no intermediate step where your address is exposed, which is the one
+practical advantage over FormSubmit. Free tiers: 250 submissions a month for
+Web3Forms, unlimited for FormSubmit.
+
+### What the setting changes
+
+| | `target` empty | `target` set |
+|---|---|---|
+| Contact page | obfuscated email link | the form |
+| Privacy policy | "Contacting us" paragraph | full disclosure naming the provider |
+| Your address in the HTML | present, obfuscated | absent (with an alias/key) |
+
+The page and the policy are generated from the same setting, so the policy can
+never describe a data flow the page does not have.
+
+### Form behaviour
+
+- **Works with JavaScript off** — a plain POST to `action` lands on the
+  provider's confirmation page. The script only upgrades that to an inline
+  result via the provider's AJAX endpoint (`data-ajax-action`), so the visitor
+  stays on the site.
+- **Honeypot** (`_honey` for FormSubmit, `botcheck` for Web3Forms), hidden and
+  out of the tab order; the provider discards anything that fills it. No CAPTCHA
+  is inflicted on real visitors — FormSubmit's is switched off via `_captcha`.
+- **Accessible** — every input labelled and required, `type="email"` validation,
+  outcome announced through a polite live region, button re-enabled on failure.
+- Success is read as `true` or `"true"`, since the two providers disagree on the
+  JSON type.
 
 ## Search Console and Analytics
 
@@ -354,7 +384,7 @@ Honest list, so you don't get surprise support email:
 - **JavaScript is required**, since conversion happens on the client. A
   `<noscript>` message explains this.
 - **The contact form is the one third-party call on the site**, and only when a
-  visitor presses Send. No Web3Forms script is loaded; the page posts to their
+  visitor presses Send. No provider script is loaded; the page posts to their
   API. If it is unreachable the form says so and the visitor stays on the page.
 - **Until a Web3Forms key is set**, the contact page falls back to an obfuscated
   email link: the address is split across `data-` attributes with the `@` added

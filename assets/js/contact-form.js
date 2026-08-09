@@ -1,12 +1,14 @@
 /**
- * Contact form submission via Web3Forms.
+ * Contact form submission.
  *
- * The form also works without JavaScript: it is a plain POST to the same
- * endpoint, which redirects to a Web3Forms confirmation page. This script only
- * upgrades that to an inline result, so the visitor never leaves the site.
+ * Works with either FormSubmit or Web3Forms — the page supplies both endpoints,
+ * and the field names are identical. The form also works with JavaScript off:
+ * it is a plain POST to `action`, which lands on the provider's own
+ * confirmation page. This script only upgrades that to an inline result, so the
+ * visitor never leaves the site.
  *
  * This is the one place on the site that talks to a third party, and only when
- * someone actually presses Send. No script is loaded from Web3Forms, and the
+ * someone actually presses Send. No provider script is loaded, and the
  * converters never touch it.
  */
 
@@ -32,14 +34,20 @@ if (form && status) {
     setStatus('Sending your message…');
 
     try {
-      const response = await fetch(form.action, {
+      // FormSubmit needs its /ajax/ endpoint to answer with JSON rather than
+      // redirect; Web3Forms uses the same URL for both.
+      const endpoint = form.dataset.ajaxAction || form.action;
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(Object.fromEntries(new FormData(form))),
       });
       const result = await response.json().catch(() => ({}));
 
-      if (response.ok && result.success) {
+      // Web3Forms reports success as a boolean, FormSubmit as the string "true".
+      const succeeded = result.success === true || result.success === 'true';
+
+      if (response.ok && succeeded) {
         form.reset();
         setStatus('Thanks — your message has been sent. We usually reply within a few days.', 'done');
       } else {
